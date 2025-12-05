@@ -1,35 +1,863 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Password Generator Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-      body {
-        font-family: 'Inter', sans-serif;
-        background-color: #f8fafc; /* Slate 50 */
-      }
-      /* Hide scrollbar for clean mobile look */
-      ::-webkit-scrollbar {
-        width: 0px;
-        background: transparent;
-      }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            /* Slate 50 */
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Hide scrollbar for clean mobile look */
+        ::-webkit-scrollbar {
+            width: 0px;
+            background: transparent;
+        }
+
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #2563eb;
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #e2e8f0;
+            border-radius: 2px;
+        }
+
+        /* Toggle Switch Animation */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #22c55e;
+        }
+        
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #22c55e;
+        }
+
+        .toggle-dot {
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        .is-checked .toggle-dot {
+            transform: translateX(1.5rem); /* translate-x-6 */
+        }
+        
+        .is-checked .toggle-bg {
+            background-color: #22c55e; /* green-500 */
+        }
+
+        /* Animations */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
-  <script type="importmap">
+    
+    <script type="importmap">
 {
   "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
     "react": "https://aistudiocdn.com/react@^19.2.1",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0"
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0"
   }
 }
 </script>
 </head>
-  <body>
-    <div id="root"></div>
-  </body>
+
+<body class="text-slate-900 pb-24">
+
+    <!-- APP CONTAINER -->
+    <div id="app" class="max-w-md mx-auto min-h-screen bg-slate-50 relative pt-8 px-5">
+        
+        <!-- ================= SECTION: HOME ================= -->
+        <div id="home-section" class="page-section fade-in">
+            <!-- Header -->
+            <div class="mb-8 text-center">
+                <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Password Generator</h1>
+                <p class="text-slate-400 text-xs mt-1 uppercase tracking-wider font-semibold">Secure & Private</p>
+            </div>
+
+            <!-- Password Display -->
+            <div class="bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/50 mb-6 border border-slate-100 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
+                <div id="password-display" class="text-center mb-4 break-all font-mono text-2xl font-semibold tracking-wide min-h-[32px] flex flex-wrap justify-center items-center text-slate-700">
+                    <!-- Password chars go here -->
+                </div>
+                
+                <!-- Strength Bars -->
+                <div class="flex justify-center items-center gap-2 mt-4">
+                    <div id="strength-bar-1" class="h-1.5 rounded-full transition-all duration-500 w-2 bg-slate-200 flex-1"></div>
+                    <div id="strength-bar-2" class="h-1.5 rounded-full transition-all duration-500 w-2 bg-slate-200 flex-1"></div>
+                    <div id="strength-bar-3" class="h-1.5 rounded-full transition-all duration-500 w-2 bg-slate-200 flex-1"></div>
+                </div>
+                <p id="strength-text" class="text-center text-xs font-medium mt-3 transition-colors text-slate-400">
+                    Generating...
+                </p>
+            </div>
+
+            <!-- Actions: Generate & Copy -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <button id="btn-generate" class="flex items-center justify-center gap-2 bg-slate-800 active:bg-slate-900 text-white py-3.5 px-4 rounded-2xl shadow-lg shadow-slate-800/20 transition-transform active:scale-95">
+                    <i data-lucide="refresh-cw" width="18" stroke-width="2.5"></i>
+                    <span class="font-semibold text-sm">Generate</span>
+                </button>
+
+                <button id="btn-copy" class="flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl shadow-lg transition-all active:scale-95 bg-blue-50 text-blue-600 hover:bg-blue-100">
+                    <i data-lucide="copy" width="18" stroke-width="2.5"></i>
+                    <span id="copy-text" class="font-semibold text-sm">Copy</span>
+                </button>
+            </div>
+
+            <!-- AI Suggest Button -->
+            <button id="btn-ai-suggest" class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white py-3 px-4 rounded-2xl shadow-lg shadow-purple-200 transition-transform active:scale-95 mb-8">
+                <i data-lucide="sparkles" width="18" stroke-width="2.5" class="text-yellow-300"></i>
+                <span class="font-semibold text-sm">Smart Suggest with AI</span>
+            </button>
+
+            <!-- Password Type Selector -->
+            <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 mb-6">
+                <div class="flex items-center gap-2 mb-4">
+                    <i data-lucide="settings-2" width="16" class="text-slate-400"></i>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Password Type</h3>
+                </div>
+                <div class="flex bg-slate-100 p-1 rounded-xl">
+                    <button class="type-btn flex-1 py-2 text-xs font-semibold rounded-lg transition-all bg-white text-slate-800 shadow-sm" data-type="Random">Random</button>
+                    <button class="type-btn flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-slate-500 hover:text-slate-600" data-type="Memorable">Memorable</button>
+                    <button class="type-btn flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-slate-500 hover:text-slate-600" data-type="Dashed">Dashed</button>
+                </div>
+            </div>
+
+            <!-- Parameters -->
+            <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 mb-6">
+                <div class="flex items-center gap-2 mb-4">
+                    <i data-lucide="sliders-horizontal" width="16" class="text-slate-400"></i>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Parameters</h3>
+                </div>
+                
+                <div class="mb-4 px-1">
+                     <div class="flex justify-between text-sm font-medium text-slate-700 mb-2">
+                        <span>Length</span>
+                        <span id="length-val" class="text-blue-600">16</span>
+                     </div>
+                     <input type="range" id="length-slider" min="6" max="32" value="16" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                </div>
+
+                <!-- Toggles Container -->
+                <div id="toggles-container">
+                    <!-- Injected by JS -->
+                </div>
+            </div>
+
+            <!-- Download Button -->
+            <button id="btn-download-modal" class="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-200 text-slate-600 font-semibold py-4 rounded-2xl hover:bg-slate-50 active:scale-95 transition-all mb-4">
+                <i data-lucide="download" width="20"></i>
+                Download as .txt
+            </button>
+        </div>
+
+
+        <!-- ================= SECTION: ADVICE ================= -->
+        <div id="advice-section" class="page-section hidden fade-in">
+             <div class="mb-6">
+                <h1 class="text-2xl font-bold text-slate-800">Ushauri wa Usalama</h1>
+                <p class="text-slate-500 text-sm mt-1">Vidokezo muhimu vya usalama mtandaoni.</p>
+             </div>
+             <div id="advice-list" class="space-y-4">
+                 <!-- Populated by JS -->
+             </div>
+        </div>
+
+
+        <!-- ================= SECTION: AI CHAT ================= -->
+        <div id="ai-section" class="page-section hidden fade-in flex flex-col h-[calc(100vh-140px)]">
+             <!-- Chat Header -->
+             <div class="pb-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-10">
+                <div class="flex items-center gap-3">
+                    <div class="bg-green-100 p-2 rounded-full">
+                        <i data-lucide="bot" class="text-green-600" width="24"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-1.5">
+                            <h1 class="text-xl font-bold text-slate-800">Dsn Ai</h1>
+                            <i data-lucide="badge-check" width="18" class="text-blue-500 fill-blue-100"></i>
+                        </div>
+                        <p class="text-xs text-green-600 font-medium flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                            Ipo Hewani (Online)
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages Area -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+                <div class="flex justify-start">
+                    <div class="max-w-[85%] rounded-2xl px-4 py-3 shadow-sm text-sm leading-relaxed bg-white text-slate-700 border border-slate-100 rounded-bl-none">
+                        <div class="flex items-center gap-1 mb-1 opacity-70">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Dsn Ai</span>
+                            <i data-lucide="badge-check" width="12" class="text-blue-500"></i>
+                        </div>
+                        Habari! Mimi ni Dsn Ai. Naweza kukusaidia vipi kuhusu usalama wa mtandao, manenosiri, au maswali mengine yoyote ya teknolojia?
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Input -->
+            <div class="pt-3 border-t border-slate-200 mt-auto">
+                <div class="flex gap-2">
+                    <input type="text" id="chat-input" placeholder="Uliza chochote..." class="flex-1 bg-white border border-slate-200 rounded-full px-5 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-500 placeholder-slate-400 shadow-sm">
+                    <button id="btn-chat-send" class="bg-green-500 text-white rounded-full p-3 hover:bg-green-600 disabled:opacity-50 transition-colors shadow-md shadow-green-200">
+                        <i data-lucide="send" width="20"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ================= SECTION: ABOUT ================= -->
+        <div id="about-section" class="page-section hidden fade-in">
+            <div class="text-center mb-10 mt-4">
+                <div class="w-20 h-20 bg-slate-900 rounded-3xl mx-auto flex items-center justify-center shadow-xl shadow-slate-300 mb-6 rotate-3">
+                  <i data-lucide="code-2" width="40" class="text-green-400"></i>
+                </div>
+                <div class="flex items-center justify-center gap-2">
+                  <h1 class="text-2xl font-extrabold text-slate-800">Dsn Technology</h1>
+                  <i data-lucide="badge-check" width="24" class="text-blue-500"></i>
+                </div>
+                <p class="text-slate-500 text-sm mt-2">Innovating for the Future</p>
+            </div>
+        
+            <div class="bg-white rounded-3xl p-6 shadow-lg shadow-slate-200/60 mb-6 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-green-50 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50"></div>
+                <h2 class="text-lg font-bold text-slate-800 mb-3 relative z-10">Kuhusu Sisi</h2>
+                <p class="text-slate-600 leading-relaxed text-sm relative z-10">
+                  Sisi ni Dsn Technology. Tunaunda suluhisho za kiteknolojia zenye nguvu na za kisasa. 
+                  Lengo letu ni kutoa huduma bora za kidijitali zinazorahisisha maisha na kuongeza usalama mtandaoni.
+                </p>
+            </div>
+        
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+                <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Wasiliana Nasi</h2>
+                
+                <div class="space-y-4">
+                  <a href="tel:0745720609" class="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition-colors group">
+                    <div class="bg-green-100 p-2.5 rounded-full text-green-600 group-hover:scale-110 transition-transform">
+                      <i data-lucide="phone" width="20"></i>
+                    </div>
+                    <div>
+                      <p class="text-xs text-slate-400 font-medium">Simu</p>
+                      <p class="text-slate-700 font-semibold">0745 720 609</p>
+                    </div>
+                  </a>
+        
+                  <a href="https://dsntechnology.site" target="_blank" rel="noreferrer" class="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition-colors group">
+                    <div class="bg-blue-100 p-2.5 rounded-full text-blue-600 group-hover:scale-110 transition-transform">
+                      <i data-lucide="globe" width="20"></i>
+                    </div>
+                    <div>
+                      <p class="text-xs text-slate-400 font-medium">Tovuti</p>
+                      <p class="text-slate-700 font-semibold">dsntechnology.site</p>
+                    </div>
+                  </a>
+        
+                   <div class="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition-colors group">
+                    <div class="bg-purple-100 p-2.5 rounded-full text-purple-600 group-hover:scale-110 transition-transform">
+                      <i data-lucide="smartphone" width="20"></i>
+                    </div>
+                    <div>
+                      <p class="text-xs text-slate-400 font-medium">Huduma</p>
+                      <p class="text-slate-700 font-semibold">App Development & IT</p>
+                    </div>
+                  </div>
+                </div>
+            </div>
+
+            <div class="mt-8 text-center">
+                <p class="text-xs text-slate-400">© 2025 Dsn Technology. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- Download Modal -->
+    <div id="modal-download" class="fixed inset-0 z-50 flex items-center justify-center px-4 hidden">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" id="modal-download-bg"></div>
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative z-10 transform transition-all scale-100">
+            <div class="flex justify-between items-center mb-6">
+                <div class="flex items-center gap-3">
+                   <div class="bg-green-100 p-2.5 rounded-full text-green-600">
+                     <i data-lucide="file-text" width="24"></i>
+                   </div>
+                   <div>
+                     <h3 class="text-lg font-bold text-slate-800 leading-tight">Save Password</h3>
+                     <p class="text-xs text-slate-500 font-medium">Download to device</p>
+                   </div>
+                </div>
+                <button id="close-download-modal" class="text-slate-400 hover:text-slate-600 p-1">
+                  <i data-lucide="x" width="24"></i>
+                </button>
+            </div>
+            <div class="mb-6">
+               <label class="block text-sm font-semibold text-slate-700 mb-2 ml-1">Filename</label>
+               <input type="text" id="filename-input" value="my_secure_password" class="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-3.5 text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500 transition-all placeholder-slate-400" placeholder="Enter filename">
+               <p class="text-right text-xs text-slate-400 mt-2 font-medium">.txt will be added automatically</p>
+            </div>
+            <div class="flex gap-3">
+                <button id="cancel-download" class="flex-1 py-3.5 text-slate-600 font-bold bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">Cancel</button>
+                <button id="confirm-download" class="flex-1 py-3.5 text-white font-bold bg-green-500 rounded-xl hover:bg-green-600 transition-colors shadow-lg shadow-green-200 flex justify-center items-center gap-2">
+                    <i data-lucide="download" width="18" stroke-width="2.5"></i> Download
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Suggest Modal -->
+    <div id="modal-ai" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:px-4 hidden">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" id="modal-ai-bg"></div>
+        <div class="bg-slate-50 w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-6 shadow-2xl relative z-10 transform transition-all scale-100 max-h-[90vh] overflow-y-auto">
+            
+            <div class="flex justify-between items-center mb-6 sticky top-0 bg-slate-50 pb-2 z-20">
+              <div class="flex items-center gap-3">
+                 <div class="bg-purple-100 p-2.5 rounded-full text-purple-600">
+                   <i data-lucide="brain-circuit" width="24"></i>
+                 </div>
+                 <div>
+                   <h3 class="text-lg font-bold text-slate-800 leading-tight">AI Security Expert</h3>
+                   <p class="text-xs text-slate-500 font-medium">Smart variations</p>
+                 </div>
+              </div>
+              <button id="close-ai-modal" class="text-slate-400 hover:text-slate-600 p-1">
+                <i data-lucide="x" width="24"></i>
+              </button>
+            </div>
+
+            <!-- Loader -->
+            <div id="ai-loading" class="flex flex-col items-center justify-center py-12 hidden">
+                <div class="relative">
+                  <div class="w-12 h-12 border-4 border-purple-100 border-t-purple-600 rounded-full animate-spin"></div>
+                  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse">
+                      <i data-lucide="sparkles" width="16" class="text-yellow-400 fill-current"></i>
+                  </div>
+                </div>
+                <p class="mt-4 text-sm font-semibold text-slate-600 animate-pulse">Analyzing patterns...</p>
+            </div>
+
+            <!-- Suggestions List -->
+            <div id="ai-results" class="space-y-3">
+                <!-- Injected by JS -->
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ================= BOTTOM NAVIGATION ================= -->
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-safe pt-2 px-6 pb-2 z-40">
+        <div class="flex justify-between items-center max-w-md mx-auto">
+            <button class="nav-btn flex flex-col items-center justify-center w-16 transition-all duration-300 text-green-600 -translate-y-1" data-target="home-section">
+                <i data-lucide="home" width="24" class="mb-1 transition-all duration-300 fill-green-100" stroke-width="2.5"></i>
+                <span class="text-[10px] font-medium opacity-100">Home</span>
+            </button>
+            
+            <button class="nav-btn flex flex-col items-center justify-center w-16 transition-all duration-300 text-slate-400 hover:text-slate-600" data-target="advice-section">
+                <i data-lucide="shield-check" width="24" class="mb-1 transition-all duration-300" stroke-width="2"></i>
+                <span class="text-[10px] font-medium opacity-80">Ushauri</span>
+            </button>
+
+            <button class="nav-btn flex flex-col items-center justify-center w-16 transition-all duration-300 text-slate-400 hover:text-slate-600" data-target="ai-section">
+                <i data-lucide="bot" width="24" class="mb-1 transition-all duration-300" stroke-width="2"></i>
+                <span class="text-[10px] font-medium opacity-80">AI</span>
+            </button>
+
+            <button class="nav-btn flex flex-col items-center justify-center w-16 transition-all duration-300 text-slate-400 hover:text-slate-600" data-target="about-section">
+                <i data-lucide="info" width="24" class="mb-1 transition-all duration-300" stroke-width="2"></i>
+                <span class="text-[10px] font-medium opacity-80">About</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT LOGIC ================= -->
+    <script type="module">
+        import { GoogleGenAI, Type } from "@google/genai";
+
+        // --- APP STATE ---
+        const state = {
+            password: '',
+            options: {
+                length: 16,
+                lowercase: true,
+                uppercase: true,
+                numbers: true,
+                symbols: true,
+                type: 'Random' // Random, Memorable, Dashed
+            }
+        };
+
+        // --- WORDS DATA ---
+        const WORDS = [
+            'apple', 'river', 'sky', 'blue', 'stone', 'music', 'happy', 'light', 'brave', 'swift',
+            'ocean', 'forest', 'mountain', 'cloud', 'star', 'dream', 'coffee', 'book', 'peace', 'smile',
+            'tiger', 'eagle', 'lion', 'wolf', 'bear', 'hawk', 'shark', 'whale', 'cobra', 'viper',
+            'mars', 'venus', 'saturn', 'pluto', 'earth', 'moon', 'solar', 'lunar', 'comet', 'orbit'
+        ];
+
+        // --- PASSWORD LOGIC ---
+        function generatePassword() {
+            const { length, lowercase, uppercase, numbers, symbols, type } = state.options;
+
+            if (type === 'Memorable') {
+                const wordCount = Math.max(3, Math.floor(length / 5));
+                let password = '';
+                const separator = numbers ? Math.floor(Math.random() * 10).toString() : '-';
+                
+                for (let i = 0; i < wordCount; i++) {
+                    let word = WORDS[Math.floor(Math.random() * WORDS.length)];
+                    if (uppercase) word = word.charAt(0).toUpperCase() + word.slice(1);
+                    password += word;
+                    if (i < wordCount - 1) password += separator;
+                }
+                if (symbols) password += '!';
+                return password;
+            }
+
+            if (type === 'Dashed') {
+                const charset = 'abcdefghijklmnopqrstuvwxyz0123456789';
+                let parts = [];
+                for (let i = 0; i < 3; i++) {
+                    let part = '';
+                    for (let j = 0; j < 3; j++) {
+                        const char = charset[Math.floor(Math.random() * charset.length)];
+                        part += uppercase && Math.random() > 0.5 ? char.toUpperCase() : char;
+                    }
+                    parts.push(part);
+                }
+                return parts.join('-');
+            }
+
+            // Random
+            let charset = '';
+            if (lowercase) charset += 'abcdefghijklmnopqrstuvwxyz';
+            if (uppercase) charset += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            if (numbers) charset += '0123456789';
+            if (symbols) charset += '!@#$%^&*()_+-=[]{}|;:,.<>?';
+            if (charset === '') charset = 'abcdefghijklmnopqrstuvwxyz';
+
+            let password = '';
+            for (let i = 0; i < length; i++) {
+                password += charset.charAt(Math.floor(Math.random() * charset.length));
+            }
+            return password;
+        }
+
+        function calculateStrength(password) {
+            let score = 0;
+            if (password.length > 8) score += 1;
+            if (password.length > 12) score += 1;
+            if (/[A-Z]/.test(password)) score += 1;
+            if (/[0-9]/.test(password)) score += 1;
+            if (/[^A-Za-z0-9]/.test(password)) score += 1;
+
+            if (score <= 2) return { score, text: 'Weak', color: 'text-red-500', barCount: 1 };
+            if (score <= 4) return { score, text: 'Strong', color: 'text-yellow-600', barCount: 2 };
+            return { score, text: 'Password will take centuries to crack', color: 'text-green-600', barCount: 3 };
+        }
+
+        // --- UI RENDER FUNCTIONS ---
+        function renderPasswordDisplay() {
+            const display = document.getElementById('password-display');
+            // Use current state password unless empty
+            if(!state.password) state.password = generatePassword();
+            const newPass = state.password;
+
+            // Render with colors
+            let html = '';
+            for (let char of newPass.split('')) {
+                let colorClass = 'text-slate-700';
+                if (/[0-9]/.test(char)) colorClass = 'text-blue-500';
+                else if (/[^A-Za-z0-9]/.test(char)) colorClass = 'text-purple-500';
+                else if (/[A-Z]/.test(char)) colorClass = 'text-orange-500';
+                html += `<span class="${colorClass}">${char}</span>`;
+            }
+            display.innerHTML = html;
+
+            // Strength
+            const strength = calculateStrength(newPass);
+            const strengthText = document.getElementById('strength-text');
+            strengthText.textContent = strength.text;
+            strengthText.className = `text-center text-xs font-medium mt-3 transition-colors ${strength.color}`;
+
+            // Bars
+            const bar1 = document.getElementById('strength-bar-1');
+            const bar2 = document.getElementById('strength-bar-2');
+            const bar3 = document.getElementById('strength-bar-3');
+            
+            bar1.className = `h-1.5 rounded-full transition-all duration-500 flex-1 ${strength.score >= 1 ? 'bg-red-400' : 'bg-slate-200'}`;
+            bar2.className = `h-1.5 rounded-full transition-all duration-500 flex-1 ${strength.score >= 3 ? 'bg-yellow-400' : 'bg-slate-200'}`;
+            bar3.className = `h-1.5 rounded-full transition-all duration-500 flex-1 ${strength.score >= 5 ? 'bg-green-500' : 'bg-slate-200'}`;
+        }
+
+        function createToggle(id, label, checked) {
+            return `
+            <div class="flex justify-between items-center py-3 border-b border-slate-100 last:border-0">
+                <span class="text-slate-700 font-medium text-sm">${label}</span>
+                <label for="${id}" class="relative inline-flex items-center cursor-pointer ${checked ? 'is-checked' : ''}">
+                    <input type="checkbox" id="${id}" class="sr-only peer" ${checked ? 'checked' : ''}>
+                    <div class="w-12 h-7 bg-slate-200 peer-focus:outline-none rounded-full transition-colors duration-300 toggle-bg"></div>
+                    <div class="absolute top-1 left-1 bg-white border-gray-300 border rounded-full h-5 w-5 transition-transform duration-300 toggle-dot shadow-md"></div>
+                </label>
+            </div>
+            `;
+        }
+
+        function renderToggles() {
+            const container = document.getElementById('toggles-container');
+            container.innerHTML = `
+                ${createToggle('toggle-lower', 'Lowercase (a-z)', state.options.lowercase)}
+                ${createToggle('toggle-upper', 'Uppercase (A-Z)', state.options.uppercase)}
+                ${createToggle('toggle-number', 'Numbers (0-9)', state.options.numbers)}
+                ${createToggle('toggle-symbol', 'Symbols (!@#)', state.options.symbols)}
+            `;
+
+            // Attach listeners manually since we re-rendered HTML
+            ['toggle-lower', 'toggle-upper', 'toggle-number', 'toggle-symbol'].forEach(id => {
+                const el = document.getElementById(id);
+                el.addEventListener('change', (e) => {
+                    const parent = el.parentElement;
+                    if(e.target.checked) parent.classList.add('is-checked');
+                    else parent.classList.remove('is-checked');
+                    
+                    const prop = id.replace('toggle-', '') === 'lower' ? 'lowercase' : 
+                                 id.replace('toggle-', '') === 'upper' ? 'uppercase' :
+                                 id.replace('toggle-', '') === 'number' ? 'numbers' : 'symbols';
+                    
+                    state.options[prop] = e.target.checked;
+                    state.password = generatePassword(); // Regen on setting change
+                    renderPasswordDisplay();
+                });
+            });
+        }
+
+        function renderAdvice() {
+            const tips = [
+                { icon: 'lock', title: "Umuhimu wa Nenosiri Kali", color: "bg-blue-100 text-blue-600", content: "Nenosiri ndio mstari wako wa kwanza wa ulinzi. Nenosiri kali linapaswa kuwa na angalau herufi 12, likichanganya herufi kubwa, ndogo, nambari na alama maalum. Epuka kutumia majina yako, tarehe za kuzaliwa, au maneno rahisi kukisiwa kama '123456'." },
+                { icon: 'shield-alert', title: "Hatari ya Kurudia Nenosiri", color: "bg-red-100 text-red-600", content: "Ikiwa unatumia nenosiri moja kwa akaunti zote, mdukuzi akipata nenosiri moja, atapata uwezo wa kuingia kwenye akaunti zako zote ikiwemo benki na barua pepe. Kila akaunti inapaswa kuwa na nenosiri la kipekee." },
+                { icon: 'user-check', title: "Uthibitishaji wa Hatua Mbili (2FA)", color: "bg-green-100 text-green-600", content: "Washa 2FA (Two-Factor Authentication) popote inapowezekana. Hii inaongeza safu ya ulinzi ambapo utahitaji msimbo unaotumwa kwa simu yako baada ya kuweka nenosiri. Hata kama mtu anajua nenosiri lako, hataweza kuingia bila simu yako." },
+                { icon: 'eye', title: "Jinsi ya Kukaa Salama Mtandaoni", color: "bg-purple-100 text-purple-600", content: "Kuwa mwangalifu na viungo (links) unavyofungua kwenye barua pepe au SMS. Wadukuzi hutumia mbinu ya 'Phishing' kuiba taarifa zako kwa kujifanya ni kampuni halali. Angalia vizuri anwani ya tovuti kabla ya kuingiza taarifa zako." },
+                { icon: 'globe', title: "Usalama wa Kuvinjari (Browsing)", color: "bg-orange-100 text-orange-600", content: "Hakikisha tovuti unayotumia ina 'https://' mwanzoni mwa anwani yake. Hii inaashiria kuwa mawasiliano kati yako na tovuti hiyo yamesimbwa (encrypted) na ni salama." },
+                { icon: 'smartphone', title: "Sasisha Vifaa Vyako", color: "bg-teal-100 text-teal-600", content: "Daima sasisha (update) programu zako na mfumo wa uendeshaji wa simu au kompyuta yako. Masasisho haya mara nyingi huziba mianya ya usalama ambayo wadukuzi wanaweza kutumia." }
+            ];
+            
+            const list = document.getElementById('advice-list');
+            list.innerHTML = tips.map(tip => `
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                    <div class="flex items-start gap-4">
+                        <div class="p-3 rounded-xl shrink-0 ${tip.color}">
+                            <i data-lucide="${tip.icon}" width="24"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800 mb-2">${tip.title}</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed">${tip.content}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            lucide.createIcons();
+        }
+
+        // --- INIT & LISTENERS ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Init UI
+            renderPasswordDisplay();
+            renderToggles();
+            renderAdvice();
+            lucide.createIcons();
+
+            // Length Slider
+            const slider = document.getElementById('length-slider');
+            const sliderVal = document.getElementById('length-val');
+            slider.addEventListener('input', (e) => {
+                state.options.length = parseInt(e.target.value);
+                sliderVal.textContent = state.options.length;
+                state.password = generatePassword();
+                renderPasswordDisplay();
+            });
+
+            // Type Buttons
+            document.querySelectorAll('.type-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    // Update UI
+                    document.querySelectorAll('.type-btn').forEach(b => {
+                        b.className = 'type-btn flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-slate-500 hover:text-slate-600';
+                    });
+                    e.target.className = 'type-btn flex-1 py-2 text-xs font-semibold rounded-lg transition-all bg-white text-slate-800 shadow-sm';
+                    
+                    // Update State
+                    state.options.type = e.target.getAttribute('data-type');
+                    state.password = generatePassword();
+                    renderPasswordDisplay();
+                });
+            });
+
+            // Generate Button
+            document.getElementById('btn-generate').addEventListener('click', () => {
+                state.password = generatePassword();
+                renderPasswordDisplay();
+            });
+
+            // Copy Button
+            const copyBtn = document.getElementById('btn-copy');
+            const copyText = document.getElementById('copy-text');
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(state.password);
+                copyText.textContent = 'Copied!';
+                copyBtn.classList.remove('bg-blue-50', 'text-blue-600');
+                copyBtn.classList.add('bg-green-100', 'text-green-700');
+                setTimeout(() => {
+                    copyText.textContent = 'Copy';
+                    copyBtn.classList.add('bg-blue-50', 'text-blue-600');
+                    copyBtn.classList.remove('bg-green-100', 'text-green-700');
+                }, 2000);
+            });
+
+            // Navigation
+            const sections = ['home-section', 'advice-section', 'ai-section', 'about-section'];
+            const navBtns = document.querySelectorAll('.nav-btn');
+
+            navBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetId = btn.getAttribute('data-target');
+                    
+                    // Hide all sections
+                    sections.forEach(id => document.getElementById(id).classList.add('hidden'));
+                    // Show target
+                    document.getElementById(targetId).classList.remove('hidden');
+
+                    // Update Nav UI
+                    navBtns.forEach(b => {
+                        b.classList.remove('text-green-600', '-translate-y-1');
+                        b.classList.add('text-slate-400');
+                        const icon = b.querySelector('i');
+                        const text = b.querySelector('span');
+                        icon.classList.remove('fill-green-100');
+                        icon.setAttribute('stroke-width', '2');
+                        text.classList.remove('opacity-100');
+                        text.classList.add('opacity-80');
+                    });
+                    
+                    btn.classList.remove('text-slate-400');
+                    btn.classList.add('text-green-600', '-translate-y-1');
+                    const icon = btn.querySelector('i');
+                    const text = btn.querySelector('span');
+                    icon.classList.add('fill-green-100');
+                    icon.setAttribute('stroke-width', '2.5');
+                    text.classList.add('opacity-100');
+                    text.classList.remove('opacity-80');
+                });
+            });
+
+            // Download Modal
+            const dlModal = document.getElementById('modal-download');
+            const dlBg = document.getElementById('modal-download-bg');
+            const filenameInput = document.getElementById('filename-input');
+
+            document.getElementById('btn-download-modal').addEventListener('click', () => dlModal.classList.remove('hidden'));
+            document.getElementById('close-download-modal').addEventListener('click', () => dlModal.classList.add('hidden'));
+            document.getElementById('cancel-download').addEventListener('click', () => dlModal.classList.add('hidden'));
+            dlBg.addEventListener('click', () => dlModal.classList.add('hidden'));
+
+            document.getElementById('confirm-download').addEventListener('click', () => {
+                const name = filenameInput.value || 'password';
+                const blob = new Blob([state.password], { type: 'text/plain;charset=utf-8' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${name}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+                dlModal.classList.add('hidden');
+            });
+
+            // AI Logic
+            const aiModal = document.getElementById('modal-ai');
+            const aiBg = document.getElementById('modal-ai-bg');
+            const aiLoading = document.getElementById('ai-loading');
+            const aiResults = document.getElementById('ai-results');
+
+            document.getElementById('btn-ai-suggest').addEventListener('click', async () => {
+                aiModal.classList.remove('hidden');
+                aiLoading.classList.remove('hidden');
+                aiResults.innerHTML = '';
+                
+                try {
+                     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+                     const schema = {
+                        type: Type.ARRAY,
+                        items: {
+                          type: Type.OBJECT,
+                          properties: {
+                            password: { type: Type.STRING, description: "The generated password" },
+                            type: { type: Type.STRING, description: "Short label like 'Phonetic', 'High Entropy', or 'Pattern-Free'" },
+                            explanation: { type: Type.STRING, description: "Brief explanation of why this is secure" }
+                          },
+                          required: ["password", "type", "explanation"],
+                        }
+                      };
+
+                      const prompt = `Generate 3 distinct, highly secure password variations based on: Length ${state.options.length}, Upper ${state.options.uppercase}, Numbers ${state.options.numbers}, Symbols ${state.options.symbols}. One Phonetic, one High Entropy, one Pattern-Free. Strictly follow length.`;
+
+                      const response = await ai.models.generateContent({
+                        model: 'gemini-2.5-flash',
+                        contents: prompt,
+                        config: {
+                          responseMimeType: "application/json",
+                          responseSchema: schema,
+                        },
+                      });
+
+                      aiLoading.classList.add('hidden');
+                      if(response.text) {
+                          const suggestions = JSON.parse(response.text);
+                          aiResults.innerHTML = suggestions.map(s => `
+                            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:border-purple-200 transition-colors group cursor-pointer suggestion-card" data-pass="${s.password}">
+                                <div class="flex justify-between items-start mb-2">
+                                    <span class="inline-block px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 text-[10px] font-bold uppercase tracking-wider">${s.type}</span>
+                                    <div class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center group-hover:border-purple-500 group-hover:bg-purple-500 transition-colors">
+                                        <i data-lucide="check" width="12" class="text-white opacity-0 group-hover:opacity-100"></i>
+                                    </div>
+                                </div>
+                                <p class="font-mono text-lg font-semibold text-slate-800 break-all mb-2">${s.password}</p>
+                                <p class="text-xs text-slate-500 leading-relaxed">${s.explanation}</p>
+                            </div>
+                          `).join('');
+                          lucide.createIcons();
+
+                          document.querySelectorAll('.suggestion-card').forEach(card => {
+                              card.addEventListener('click', () => {
+                                  const p = card.getAttribute('data-pass');
+                                  state.password = p;
+                                  renderPasswordDisplay();
+                                  aiModal.classList.add('hidden');
+                              });
+                          });
+                      }
+
+                } catch (e) {
+                    console.error(e);
+                    aiLoading.classList.add('hidden');
+                    aiResults.innerHTML = '<p class="text-red-500 text-center text-sm">Error generating suggestions.</p>';
+                }
+            });
+
+            document.getElementById('close-ai-modal').addEventListener('click', () => aiModal.classList.add('hidden'));
+            aiBg.addEventListener('click', () => aiModal.classList.add('hidden'));
+
+            // Chat Logic
+            const chatInput = document.getElementById('chat-input');
+            const chatSend = document.getElementById('btn-chat-send');
+            const chatMsgs = document.getElementById('chat-messages');
+
+            async function sendChat() {
+                const text = chatInput.value.trim();
+                if(!text) return;
+
+                // User Msg
+                chatMsgs.innerHTML += `
+                <div class="flex justify-end">
+                    <div class="max-w-[85%] rounded-2xl px-4 py-3 shadow-sm text-sm leading-relaxed bg-slate-800 text-white rounded-br-none">
+                        ${text}
+                    </div>
+                </div>
+                `;
+                chatInput.value = '';
+                chatMsgs.scrollTop = chatMsgs.scrollHeight;
+
+                // Loading
+                const loadingId = 'loading-' + Date.now();
+                chatMsgs.innerHTML += `
+                <div class="flex justify-start" id="${loadingId}">
+                    <div class="bg-white rounded-2xl rounded-bl-none px-4 py-3 shadow-sm border border-slate-100">
+                        <div class="flex gap-1.5 mt-1">
+                            <div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
+                            <div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-100"></div>
+                            <div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-200"></div>
+                        </div>
+                    </div>
+                </div>
+                `;
+                chatMsgs.scrollTop = chatMsgs.scrollHeight;
+
+                try {
+                    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+                    const chat = ai.chats.create({
+                        model: 'gemini-2.5-flash',
+                        config: {
+                          systemInstruction: 'You are "Dsn Ai", a helpful cybersecurity assistant created by Dsn Technology. Respond in Swahili (Kiswahili). Be professional, concise.',
+                        },
+                    });
+                    
+                    const result = await chat.sendMessage({ message: text });
+                    document.getElementById(loadingId).remove();
+                    
+                    chatMsgs.innerHTML += `
+                    <div class="flex justify-start">
+                        <div class="max-w-[85%] rounded-2xl px-4 py-3 shadow-sm text-sm leading-relaxed bg-white text-slate-700 border border-slate-100 rounded-bl-none">
+                            <div class="flex items-center gap-1 mb-1 opacity-70">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Dsn Ai</span>
+                                <i data-lucide="badge-check" width="12" class="text-blue-500"></i>
+                            </div>
+                            ${result.text}
+                        </div>
+                    </div>
+                    `;
+                    lucide.createIcons();
+                    chatMsgs.scrollTop = chatMsgs.scrollHeight;
+
+                } catch(e) {
+                    document.getElementById(loadingId).remove();
+                    chatMsgs.innerHTML += `<div class="text-center text-xs text-red-400 my-2">Failed to send message</div>`;
+                }
+            }
+
+            chatSend.addEventListener('click', sendChat);
+            chatInput.addEventListener('keydown', (e) => {
+                if(e.key === 'Enter') sendChat();
+            });
+
+        });
+    </script>
+</body>
 </html>
